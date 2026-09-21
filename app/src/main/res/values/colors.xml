@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Chronicle Editorial Palette -->
+    <color name="chronicle_primary">#D95327</color>
+    <color name="chronicle_primary_dark">#E06D46</color>
+    <color name="chronicle_bg_dark">#121316</color>
+    <color name="chronicle_card_dark">#1B1D22</color>
+    <color name="chronicle_text_primary_dark">#F0F1F5</color>
+    <color name="chronicle_text_secondary_dark">#9DA2B0</color>
+
+    <color name="chronicle_bg_light">#FAF9F6</color>
+    <color name="chronicle_card_light">#FFFFFF</color>
+    <color name="chronicle_text_primary_light">#1A1A1E</color>
+    <color name="chronicle_text_secondary_light">#606470</color>
+</resources>

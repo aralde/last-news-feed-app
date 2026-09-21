@@ -1,0 +1,18 @@
+<resources>
+    <string name="app_name">Chronicle</string>
+    <string name="app_tagline">Editorial News &amp; Local AI Broadcaster</string>
+    <string name="daily_digest">Boletín de Hoy</string>
+    <string name="daily_digest_desc">Escucha el resumen de las noticias más destacadas</string>
+    <string name="filter_all">Todos</string>
+    <string name="filter_unread">No leídos</string>
+    <string name="filter_favorites">Favoritos</string>
+    <string name="sources">Fuentes</string>
+    <string name="add_source">Añadir fuente</string>
+    <string name="enter_site_url">URL del blog o feed RSS/Atom</string>
+    <string name="settings">Ajustes</string>
+    <string name="llm_settings">Modelo Local de IA (Gemma)</string>
+    <string name="tts_settings">Síntesis de Voz (TTS)</string>
+    <string name="narrate_news">Locutar noticia</string>
+    <string name="generating_summary">Sintetizando locución con Gemma…</string>
+    <string name="playing_audio">Reproduciendo locución…</string>
+</resources>

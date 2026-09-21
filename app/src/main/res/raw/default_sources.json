@@ -1,0 +1,82 @@
+[
+  {
+    "id": "simon-willison",
+    "name": "Simon Willison's Weblog",
+    "siteUrl": "https://simonwillison.net/",
+    "feedUrl": "https://simonwillison.net/atom/everything/",
+    "enabled": true,
+    "category": "Tech & AI"
+  },
+  {
+    "id": "openai-cookbook",
+    "name": "OpenAI Cookbook & Devs",
+    "siteUrl": "https://developers.openai.com/cookbook",
+    "feedUrl": "https://developers.openai.com/rss.xml",
+    "enabled": true,
+    "category": "AI Development"
+  },
+  {
+    "id": "lilian-weng",
+    "name": "Lil'Log (Lilian Weng - OpenAI)",
+    "siteUrl": "https://lilianweng.github.io/",
+    "feedUrl": "https://lilianweng.github.io/index.xml",
+    "enabled": true,
+    "category": "AI Research"
+  },
+  {
+    "id": "chip-huyen",
+    "name": "Chip Huyen's Blog",
+    "siteUrl": "https://huyenchip.com/",
+    "feedUrl": "https://huyenchip.com/feed.xml",
+    "enabled": true,
+    "category": "AI Engineering"
+  },
+  {
+    "id": "chip-huyen-substack",
+    "name": "Chip Huyen's Substack",
+    "siteUrl": "https://chiphuyen.substack.com/",
+    "feedUrl": "https://chiphuyen.substack.com/feed",
+    "enabled": true,
+    "category": "AI Engineering"
+  },
+  {
+    "id": "langchain-changelog",
+    "name": "LangChain Changelog",
+    "siteUrl": "https://github.com/langchain-ai/langchain/releases",
+    "feedUrl": "https://github.com/langchain-ai/langchain/releases.atom",
+    "enabled": true,
+    "category": "Agent Frameworks"
+  },
+  {
+    "id": "langgraph-changelog",
+    "name": "LangGraph Changelog",
+    "siteUrl": "https://github.com/langchain-ai/langgraph/releases",
+    "feedUrl": "https://github.com/langchain-ai/langgraph/releases.atom",
+    "enabled": true,
+    "category": "Agent Frameworks"
+  },
+  {
+    "id": "crewai-changelog",
+    "name": "CrewAI Changelog",
+    "siteUrl": "https://github.com/crewAIInc/crewAI/releases",
+    "feedUrl": "https://github.com/crewAIInc/crewAI/releases.atom",
+    "enabled": true,
+    "category": "Agent Frameworks"
+  },
+  {
+    "id": "dspy-releases",
+    "name": "DSPy Releases (Stanford NLP)",
+    "siteUrl": "https://github.com/stanfordnlp/dspy/releases",
+    "feedUrl": "https://github.com/stanfordnlp/dspy/releases.atom",
+    "enabled": true,
+    "category": "Agent Frameworks"
+  },
+  {
+    "id": "stanford-sail-blog",
+    "name": "Stanford AI Lab (SAIL) Blog",
+    "siteUrl": "https://ai.stanford.edu/blog/",
+    "feedUrl": "https://ai.stanford.edu/blog/feed.xml",
+    "enabled": true,
+    "category": "AI Research"
+  }
+]
