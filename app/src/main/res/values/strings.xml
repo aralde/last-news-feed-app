@@ -1,8 +1,10 @@
 <resources>
     <string name="app_name">Chronicle</string>
-    <string name="app_tagline">Editorial News &amp; Local AI Broadcaster</string>
+    <string name="app_tagline">Lector Editorial &amp; Locutor de IA</string>
     <string name="daily_digest">Boletín de Hoy</string>
     <string name="daily_digest_desc">Escucha el resumen de las noticias más destacadas</string>
+    <string name="custom_digest">Boletín Personalizado</string>
+    <string name="custom_digest_desc">Informativo con tus noticias seleccionadas</string>
     <string name="filter_all">Todos</string>
     <string name="filter_unread">No leídos</string>
     <string name="filter_favorites">Favoritos</string>
@@ -12,7 +14,14 @@
     <string name="settings">Ajustes</string>
     <string name="llm_settings">Modelo Local de IA (Gemma)</string>
     <string name="tts_settings">Síntesis de Voz (TTS)</string>
-    <string name="narrate_news">Locutar noticia</string>
+    <string name="listen_article">Escuchar artículo</string>
+    <string name="narrating">Locutando…</string>
     <string name="generating_summary">Sintetizando locución con Gemma…</string>
     <string name="playing_audio">Reproduciendo locución…</string>
+    <string name="loading_models">Iniciando modelo de IA y síntesis de voz…</string>
+    <string name="models_ready">Modelo de IA y voces listos</string>
+    <string name="search_placeholder">Buscar en titulares o fuentes…</string>
+    <string name="mark_all_read">Marcar todo leído</string>
+    <string name="sort_recent">Recientes</string>
+    <string name="sort_source">Por fuente</string>
 </resources>

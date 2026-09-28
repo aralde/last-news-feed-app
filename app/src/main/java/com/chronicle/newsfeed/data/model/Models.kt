@@ -53,7 +53,8 @@ data class LlmSettings(
     val modelPath: String = "",
     val temperature: Float = 0.5f,
     val maxTokens: Int = 512,
-    val language: String = "es"
+    val language: String = "es",
+    val fetchFullArticleWeb: Boolean = true
 )
 
 data class TtsSettings(

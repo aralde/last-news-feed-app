@@ -10,6 +10,7 @@ import com.chronicle.newsfeed.data.local.entity.FeedSourceEntity
 import com.chronicle.newsfeed.data.model.Article
 import com.chronicle.newsfeed.data.model.DailyDigest
 import com.chronicle.newsfeed.data.model.FeedSource
+import com.chronicle.newsfeed.domain.feed.ArticleWebExtractor
 import com.chronicle.newsfeed.domain.feed.FeedDiscoveryService
 import com.chronicle.newsfeed.domain.feed.FeedParser
 import com.chronicle.newsfeed.domain.llm.LlmManager
@@ -32,7 +33,8 @@ class FeedRepository(
         .readTimeout(20, TimeUnit.SECONDS)
         .build(),
     private val feedParser: FeedParser = FeedParser(),
-    private val discoveryService: FeedDiscoveryService = FeedDiscoveryService(httpClient)
+    private val discoveryService: FeedDiscoveryService = FeedDiscoveryService(httpClient),
+    private val webExtractor: ArticleWebExtractor = ArticleWebExtractor(httpClient)
 ) {
 
     private val sourceDao = database.feedSourceDao()
@@ -231,10 +233,36 @@ class FeedRepository(
             return@withContext cached
         }
 
+        var effectiveContent = article.content.ifBlank { article.description }
+
+        // Si está configurado, intentar extraer el contenido completo de la noticia real desde su URL web
+        if (llmSettings.fetchFullArticleWeb && article.link.isNotBlank() &&
+            (article.link.startsWith("http://") || article.link.startsWith("https://"))
+        ) {
+            try {
+                val extracted = webExtractor.extractContent(article.link)
+                if (!extracted.isNullOrBlank() && extracted.length > effectiveContent.length) {
+                    Log.i("FeedRepository", "Using full web content (${extracted.length} chars) instead of RSS for: ${article.title}")
+                    effectiveContent = extracted
+                    // Actualizar el contenido en la base de datos para que el lector y futuras sesiones tengan la noticia completa
+                    articleDao.updateArticleContent(article.id, extracted)
+                }
+            } catch (e: Exception) {
+                Log.w("FeedRepository", "Web extraction error for ${article.link}, using RSS fallback", e)
+            }
+        }
+
+        // Ventana de contexto segura para modelo Gemma on-device (evitar OOM / overflow)
+        val contentForLlm = if (effectiveContent.length > 3500) {
+            effectiveContent.take(3500) + "..."
+        } else {
+            effectiveContent
+        }
+
         val promptSettings = settingsRepository.getPromptSettingsSync()
         val generated = llmManager.summarizeArticle(
             title = article.title,
-            content = article.content,
+            content = contentForLlm,
             description = article.description,
             settings = llmSettings,
             promptSettings = promptSettings
@@ -266,4 +294,20 @@ class FeedRepository(
             language = llmSettings.language
         )
     }
+
+    suspend fun generateCustomDigest(selectedArticles: List<Article>): DailyDigest = withContext(Dispatchers.IO) {
+        val llmSettings = settingsRepository.getLlmSettingsSync()
+        val promptSettings = settingsRepository.getPromptSettingsSync()
+
+        val pairs = selectedArticles.map { it.sourceName to it.title }
+        val digestText = llmManager.generateCustomDigest(pairs, llmSettings, promptSettings)
+
+        DailyDigest(
+            id = "custom_digest_${System.currentTimeMillis()}",
+            text = digestText,
+            articleCount = selectedArticles.size,
+            language = llmSettings.language
+        )
+    }
 }
+

@@ -9,6 +9,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Pause
+import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
@@ -27,9 +28,13 @@ fun FloatingAudioPlayer(
     onTogglePlayPause: () -> Unit,
     onCycleSpeed: () -> Unit,
     onClose: () -> Unit,
+    onSkipNext: (() -> Unit)? = null,
+    hasSkipNext: Boolean = false,
+    queuePositionText: String? = null,
     modifier: Modifier = Modifier
 ) {
-    val isVisible = playbackState.isPlaying || playbackState.isSynthesizing || playbackState.text.isNotBlank()
+    val strings = com.chronicle.newsfeed.ui.theme.LocalAppStrings.current
+    val isVisible = (playbackState.isPlaying || playbackState.isSynthesizing) && playbackState.text.isNotBlank()
 
     AnimatedVisibility(
         visible = isVisible,
@@ -72,13 +77,27 @@ fun FloatingAudioPlayer(
                     } else if (playbackState.isPlaying) {
                         Icon(
                             imageVector = Icons.Default.Pause,
-                            contentDescription = "Pausar",
+                            contentDescription = strings.pause,
                             modifier = Modifier.size(22.dp)
                         )
                     } else {
                         Icon(
                             imageVector = Icons.Default.PlayArrow,
-                            contentDescription = "Reanudar",
+                            contentDescription = strings.resume,
+                            modifier = Modifier.size(22.dp)
+                        )
+                    }
+                }
+
+                if (hasSkipNext && onSkipNext != null) {
+                    IconButton(
+                        onClick = onSkipNext,
+                        modifier = Modifier.size(34.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.SkipNext,
+                            contentDescription = "Siguiente",
+                            tint = MaterialTheme.colorScheme.onSurface,
                             modifier = Modifier.size(22.dp)
                         )
                     }
@@ -87,7 +106,7 @@ fun FloatingAudioPlayer(
                 // Info: Title & Subtitle / Engine
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = playbackState.title.ifBlank { "Locutor de Noticias" },
+                        text = playbackState.title.ifBlank { strings.appName },
                         style = MaterialTheme.typography.titleMedium,
                         color = MaterialTheme.colorScheme.onSurface,
                         maxLines = 1,
@@ -102,8 +121,21 @@ fun FloatingAudioPlayer(
                             isPlaying = playbackState.isPlaying,
                             modifier = Modifier.padding(top = 2.dp)
                         )
+                        if (queuePositionText != null) {
+                            Text(
+                                text = queuePositionText,
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                            Text(
+                                text = "•",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
                         Text(
-                            text = if (playbackState.isSynthesizing) "Generando locución con Gemma…" else playbackState.engineName,
+                            text = if (playbackState.isSynthesizing) strings.generatingSummary else playbackState.engineName,
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             maxLines = 1,
@@ -134,7 +166,7 @@ fun FloatingAudioPlayer(
                 ) {
                     Icon(
                         imageVector = Icons.Default.Close,
-                        contentDescription = "Cerrar",
+                        contentDescription = strings.close,
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.size(18.dp)
                     )

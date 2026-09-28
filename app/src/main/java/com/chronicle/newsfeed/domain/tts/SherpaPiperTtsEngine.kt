@@ -28,6 +28,7 @@ class SherpaPiperTtsEngine(
     private var tts: OfflineTts? = null
     private var audioTrack: AudioTrack? = null
     private var isPlaying = false
+    private var currentJob: Job? = null
     private val scope = CoroutineScope(Dispatchers.Default + SupervisorJob())
 
     init {
@@ -57,9 +58,10 @@ class SherpaPiperTtsEngine(
                 lengthScale = 1.0f
             }
 
+            val optimalThreads = Runtime.getRuntime().availableProcessors().coerceIn(2, 4)
             val modelConfig = OfflineTtsModelConfig().apply {
                 vits = vitsConfig
-                numThreads = 2
+                numThreads = optimalThreads
                 debug = false
                 provider = "cpu"
             }
@@ -71,7 +73,7 @@ class SherpaPiperTtsEngine(
 
             tts = OfflineTts(assetManager = null, config = config)
             isReady = true
-            Log.i("SherpaPiperTts", "Sherpa-ONNX Piper initialized successfully with model: ${modelFile.name} and dataDir: $resolvedDataDir")
+            Log.i("SherpaPiperTts", "Sherpa-ONNX Piper initialized successfully with model: ${modelFile.name} ($optimalThreads threads) and dataDir: $resolvedDataDir")
         } catch (e: Exception) {
             Log.e("SherpaPiperTts", "Failed to initialize Sherpa-ONNX Piper", e)
             isReady = false
@@ -88,95 +90,175 @@ class SherpaPiperTtsEngine(
         stop()
         isPlaying = true
 
-        scope.launch {
+        val sentences = splitIntoSentences(text)
+        if (sentences.isEmpty()) {
+            isPlaying = false
+            listener.onDone()
+            return
+        }
+
+        currentJob = scope.launch {
             try {
-                listener.onStart()
-                val speed = rate.coerceIn(0.5f, 2.0f)
-
-                val audio = engine.generate(text, sid = 0, speed = speed)
-                val samples = audio.samples
-                val sampleRate = audio.sampleRate
-
-                if (samples == null || samples.isEmpty()) {
-                    withContext(Dispatchers.Main) {
-                        listener.onError("Piper no generó audio para el texto proporcionado.")
-                    }
-                    isPlaying = false
-                    return@launch
+                withContext(Dispatchers.Main) {
+                    listener.onStart()
                 }
 
-                playSamples(samples, sampleRate, listener)
-            } catch (e: Exception) {
-                Log.e("SherpaPiperTts", "Error synthesizing speech with Piper", e)
+                val speed = rate.coerceIn(0.5f, 2.0f)
+                // Channel to pipeline synthesized audio chunks directly to playback
+                val audioChannel = kotlinx.coroutines.channels.Channel<Pair<ShortArray, Int>>(capacity = 3)
+
+                // Synthesis Coroutine (Producer)
+                val generatorJob = launch(Dispatchers.Default) {
+                    try {
+                        for (sentence in sentences) {
+                            if (!isActive || !isPlaying) break
+                            val audio = engine.generate(sentence, sid = 0, speed = speed)
+                            val samples = audio.samples
+                            if (samples.isNotEmpty()) {
+                                val pcm = floatArrayToPcm(samples)
+                                audioChannel.send(Pair(pcm, audio.sampleRate))
+                            }
+                        }
+                    } finally {
+                        audioChannel.close()
+                    }
+                }
+
+                // Playback Coroutine (Consumer)
+                withContext(Dispatchers.IO) {
+                    var track: AudioTrack? = null
+                    var totalFramesWritten = 0L
+
+                    try {
+                        for ((pcm, sampleRate) in audioChannel) {
+                            if (!isActive || !isPlaying) break
+
+                            if (track == null) {
+                                val minBufferSize = AudioTrack.getMinBufferSize(
+                                    sampleRate,
+                                    AudioFormat.CHANNEL_OUT_MONO,
+                                    AudioFormat.ENCODING_PCM_16BIT
+                                )
+                                val bufferSize = (minBufferSize * 4).coerceAtLeast(sampleRate * 2)
+
+                                val newTrack = AudioTrack.Builder()
+                                    .setAudioAttributes(
+                                        AudioAttributes.Builder()
+                                            .setUsage(AudioAttributes.USAGE_MEDIA)
+                                            .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
+                                            .build()
+                                    )
+                                    .setAudioFormat(
+                                        AudioFormat.Builder()
+                                            .setEncoding(AudioFormat.ENCODING_PCM_16BIT)
+                                            .setSampleRate(sampleRate)
+                                            .setChannelMask(AudioFormat.CHANNEL_OUT_MONO)
+                                            .build()
+                                    )
+                                    .setBufferSizeInBytes(bufferSize)
+                                    .setTransferMode(AudioTrack.MODE_STREAM)
+                                    .build()
+
+                                audioTrack = newTrack
+                                track = newTrack
+                                newTrack.play()
+                            }
+
+                            var written = 0
+                            while (written < pcm.size && isPlaying && isActive) {
+                                val ret = track.write(pcm, written, pcm.size - written)
+                                if (ret > 0) {
+                                    written += ret
+                                    totalFramesWritten += ret
+                                } else {
+                                    break
+                                }
+                            }
+                        }
+
+                        // Wait for track buffer to finish playing
+                        if (track != null && isPlaying && isActive) {
+                            while (isPlaying && isActive) {
+                                val head = (track.playbackHeadPosition.toLong() and 0xFFFFFFFFL)
+                                if (head >= totalFramesWritten) break
+                                delay(50)
+                            }
+                        }
+                    } finally {
+                        generatorJob.cancel()
+                        audioChannel.close()
+                        try {
+                            track?.stop()
+                            track?.release()
+                        } catch (_: Exception) {}
+                        if (audioTrack == track) {
+                            audioTrack = null
+                        }
+                    }
+                }
+
+                val wasPlaying = isPlaying
+                isPlaying = false
+
                 withContext(Dispatchers.Main) {
-                    listener.onError("Error de Piper: ${e.localizedMessage ?: e.message}")
+                    if (wasPlaying) {
+                        listener.onDone()
+                    }
+                }
+            } catch (e: Exception) {
+                if (e !is CancellationException) {
+                    Log.e("SherpaPiperTts", "Error synthesizing speech with Piper", e)
+                    withContext(Dispatchers.Main) {
+                        listener.onError("Error de Piper: ${e.localizedMessage ?: e.message}")
+                    }
                 }
                 isPlaying = false
             }
         }
     }
 
-    private suspend fun playSamples(samples: FloatArray, sampleRate: Int, listener: TtsEngineListener) = withContext(Dispatchers.IO) {
+    private fun floatArrayToPcm(samples: FloatArray): ShortArray {
         val pcm = ShortArray(samples.size)
         for (i in samples.indices) {
             val s = (samples[i] * 32767.0f).coerceIn(-32768.0f, 32767.0f)
             pcm[i] = s.toInt().toShort()
         }
+        return pcm
+    }
 
-        val bufferSize = AudioTrack.getMinBufferSize(
-            sampleRate,
-            AudioFormat.CHANNEL_OUT_MONO,
-            AudioFormat.ENCODING_PCM_16BIT
-        ).coerceAtLeast(pcm.size * 2)
+    private fun splitIntoSentences(text: String): List<String> {
+        if (text.isBlank()) return emptyList()
+        val cleanedText = text.replace("\r\n", "\n").replace('\r', '\n')
+        val rawChunks = cleanedText.split(Regex("(?<=[.!?\\n])\\s+"))
+        val result = mutableListOf<String>()
 
-        val track = AudioTrack.Builder()
-            .setAudioAttributes(
-                AudioAttributes.Builder()
-                    .setUsage(AudioAttributes.USAGE_MEDIA)
-                    .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
-                    .build()
-            )
-            .setAudioFormat(
-                AudioFormat.Builder()
-                    .setEncoding(AudioFormat.ENCODING_PCM_16BIT)
-                    .setSampleRate(sampleRate)
-                    .setChannelMask(AudioFormat.CHANNEL_OUT_MONO)
-                    .build()
-            )
-            .setBufferSizeInBytes(bufferSize)
-            .setTransferMode(AudioTrack.MODE_STREAM)
-            .build()
+        for (chunk in rawChunks) {
+            val trimmed = chunk.trim()
+            if (trimmed.isEmpty()) continue
 
-        audioTrack = track
-        track.play()
-        track.write(pcm, 0, pcm.size)
-
-        val durationMs = (pcm.size * 1000L) / sampleRate
-        var elapsed = 0L
-        while (elapsed < durationMs && isPlaying) {
-            delay(100)
-            elapsed += 100
-        }
-
-        try {
-            track.stop()
-            track.release()
-        } catch (_: Exception) {}
-
-        audioTrack = null
-        val wasPlaying = isPlaying
-        isPlaying = false
-
-        withContext(Dispatchers.Main) {
-            if (wasPlaying) {
-                listener.onDone()
+            if (trimmed.length > 200) {
+                val subChunks = trimmed.split(Regex("(?<=[,;:])\\s+"))
+                for (sub in subChunks) {
+                    val subTrimmed = sub.trim()
+                    if (subTrimmed.isNotEmpty()) {
+                        result.add(subTrimmed)
+                    }
+                }
+            } else {
+                result.add(trimmed)
             }
         }
+
+        return if (result.isNotEmpty()) result else listOf(cleanedText.trim())
     }
 
     override fun stop() {
         isPlaying = false
+        currentJob?.cancel()
+        currentJob = null
         try {
+            audioTrack?.pause()
+            audioTrack?.flush()
             audioTrack?.stop()
             audioTrack?.release()
         } catch (_: Exception) {}

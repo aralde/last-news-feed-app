@@ -18,7 +18,8 @@ import com.chronicle.newsfeed.ui.feed.FeedViewModel
 import com.chronicle.newsfeed.ui.reader.ArticleReaderScreen
 import com.chronicle.newsfeed.ui.settings.SettingsScreen
 import com.chronicle.newsfeed.ui.theme.ChronicleTheme
-import kotlinx.coroutines.launch
+import com.chronicle.newsfeed.ui.theme.LocalAppStrings
+import com.chronicle.newsfeed.ui.theme.getAppStrings
 
 class MainActivity : ComponentActivity() {
 
@@ -31,47 +32,51 @@ class MainActivity : ComponentActivity() {
                 val feedViewModel: FeedViewModel = viewModel()
                 val articles by feedViewModel.articles.collectAsState()
                 val synthesizingArticleId by feedViewModel.synthesizingArticleId.collectAsState()
+                val appLanguage by feedViewModel.appLanguage.collectAsState()
+                val appStrings = remember(appLanguage) { getAppStrings(appLanguage) }
 
-                Surface(modifier = Modifier.fillMaxSize()) {
-                    NavHost(
-                        navController = navController,
-                        startDestination = "feed"
-                    ) {
-                        composable("feed") {
-                            FeedScreen(
-                                onArticleClick = { article ->
-                                    feedViewModel.toggleArticleRead(article)
-                                    navController.navigate("reader/${article.id}")
-                                },
-                                onNavigateToSettings = {
-                                    navController.navigate("settings")
-                                },
-                                viewModel = feedViewModel
-                            )
-                        }
-
-                        composable(
-                            route = "reader/{articleId}",
-                            arguments = listOf(navArgument("articleId") { type = NavType.StringType })
-                        ) { backStackEntry ->
-                            val articleId = backStackEntry.arguments?.getString("articleId") ?: ""
-                            val article = articles.find { it.id == articleId }
-
-                            if (article != null) {
-                                ArticleReaderScreen(
-                                    article = article,
-                                    onBack = { navController.popBackStack() },
-                                    onNarrate = { feedViewModel.narrateArticle(article) },
-                                    onToggleFavorite = { feedViewModel.toggleArticleFavorite(article) },
-                                    isSynthesizing = synthesizingArticleId == article.id
+                CompositionLocalProvider(LocalAppStrings provides appStrings) {
+                    Surface(modifier = Modifier.fillMaxSize()) {
+                        NavHost(
+                            navController = navController,
+                            startDestination = "feed"
+                        ) {
+                            composable("feed") {
+                                FeedScreen(
+                                    onArticleClick = { article ->
+                                        feedViewModel.toggleArticleRead(article)
+                                        navController.navigate("reader/${article.id}")
+                                    },
+                                    onNavigateToSettings = {
+                                        navController.navigate("settings")
+                                    },
+                                    viewModel = feedViewModel
                                 )
                             }
-                        }
 
-                        composable("settings") {
-                            SettingsScreen(
-                                onBack = { navController.popBackStack() }
-                            )
+                            composable(
+                                route = "reader/{articleId}",
+                                arguments = listOf(navArgument("articleId") { type = NavType.StringType })
+                            ) { backStackEntry ->
+                                val articleId = backStackEntry.arguments?.getString("articleId") ?: ""
+                                val article = articles.find { it.id == articleId }
+
+                                if (article != null) {
+                                    ArticleReaderScreen(
+                                        article = article,
+                                        onBack = { navController.popBackStack() },
+                                        onNarrate = { feedViewModel.narrateArticle(article) },
+                                        onToggleFavorite = { feedViewModel.toggleArticleFavorite(article) },
+                                        isSynthesizing = synthesizingArticleId == article.id
+                                    )
+                                }
+                            }
+
+                            composable("settings") {
+                                SettingsScreen(
+                                    onBack = { navController.popBackStack() }
+                                )
+                            }
                         }
                     }
                 }

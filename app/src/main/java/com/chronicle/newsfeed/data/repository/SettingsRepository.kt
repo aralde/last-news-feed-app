@@ -20,6 +20,7 @@ class SettingsRepository(private val context: Context) {
         val LLM_MODEL_PATH = stringPreferencesKey("llm_model_path")
         val LLM_TEMPERATURE = floatPreferencesKey("llm_temperature")
         val LLM_LANGUAGE = stringPreferencesKey("llm_language")
+        val LLM_FETCH_FULL_ARTICLE_WEB = booleanPreferencesKey("llm_fetch_full_article_web")
 
         val TTS_ENGINE_TYPE = stringPreferencesKey("tts_engine_type")
         val TTS_PIPER_DIR = stringPreferencesKey("tts_piper_dir")
@@ -39,7 +40,8 @@ class SettingsRepository(private val context: Context) {
         LlmSettings(
             modelPath = prefs[PreferencesKeys.LLM_MODEL_PATH] ?: "",
             temperature = prefs[PreferencesKeys.LLM_TEMPERATURE] ?: 0.5f,
-            language = prefs[PreferencesKeys.LLM_LANGUAGE] ?: "es"
+            language = prefs[PreferencesKeys.LLM_LANGUAGE] ?: "es",
+            fetchFullArticleWeb = prefs[PreferencesKeys.LLM_FETCH_FULL_ARTICLE_WEB] ?: true
         )
     }
 
@@ -80,6 +82,7 @@ class SettingsRepository(private val context: Context) {
             prefs[PreferencesKeys.LLM_MODEL_PATH] = settings.modelPath
             prefs[PreferencesKeys.LLM_TEMPERATURE] = settings.temperature
             prefs[PreferencesKeys.LLM_LANGUAGE] = settings.language
+            prefs[PreferencesKeys.LLM_FETCH_FULL_ARTICLE_WEB] = settings.fetchFullArticleWeb
         }
     }
 

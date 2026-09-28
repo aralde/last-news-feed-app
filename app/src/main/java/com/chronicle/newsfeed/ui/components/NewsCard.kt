@@ -33,24 +33,32 @@ fun NewsCard(
     onToggleFavorite: () -> Unit,
     onToggleRead: () -> Unit,
     isSynthesizing: Boolean = false,
+    isSelectionMode: Boolean = false,
+    isSelectedForDigest: Boolean = false,
+    onToggleSelectForDigest: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
+    val strings = com.chronicle.newsfeed.ui.theme.LocalAppStrings.current
+
     Card(
         modifier = modifier
             .fillMaxWidth()
-            .clickable { onClick() },
+            .clickable {
+                if (isSelectionMode) onToggleSelectForDigest() else onClick()
+            },
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface
+            containerColor = if (isSelectedForDigest) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.25f) else MaterialTheme.colorScheme.surface
         ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+        border = if (isSelectedForDigest) androidx.compose.foundation.BorderStroke(1.5.dp, MaterialTheme.colorScheme.primary) else null,
+        elevation = CardDefaults.cardElevation(defaultElevation = if (isSelectedForDigest) 3.dp else 1.dp)
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(16.dp)
         ) {
-            // Top Row: Source Tag, Date & Unread Indicator
+            // Top Row: Source Tag, Date, Unread Indicator & Selection Checkbox
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -89,20 +97,28 @@ fun NewsCard(
                     )
                 }
 
-                if (!article.isRead) {
-                    Box(
-                        modifier = Modifier
-                            .size(8.dp)
-                            .clip(CircleShape)
-                            .padding(end = 4.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.FiberManualRecord,
-                            contentDescription = "No leído",
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(8.dp)
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    if (isSelectionMode) {
+                        Checkbox(
+                            checked = isSelectedForDigest,
+                            onCheckedChange = { onToggleSelectForDigest() },
+                            modifier = Modifier.size(24.dp)
                         )
+                    } else if (!article.isRead) {
+                        Box(
+                            modifier = Modifier
+                                .size(8.dp)
+                                .clip(CircleShape)
+                                .padding(end = 4.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.FiberManualRecord,
+                                contentDescription = strings.filterUnread,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(8.dp)
+                            )
+                        }
                     }
                 }
             }
@@ -173,19 +189,19 @@ fun NewsCard(
                         )
                         Spacer(modifier = Modifier.width(6.dp))
                         Text(
-                            text = "Locutando…",
+                            text = strings.narrating,
                             style = MaterialTheme.typography.labelSmall,
                             fontWeight = FontWeight.SemiBold
                         )
                     } else {
                         Icon(
                             imageVector = Icons.Default.Headphones,
-                            contentDescription = "Escuchar",
+                            contentDescription = strings.listenArticle,
                             modifier = Modifier.size(15.dp)
                         )
                         Spacer(modifier = Modifier.width(6.dp))
                         Text(
-                            text = "Escuchar IA",
+                            text = strings.listenArticle,
                             style = MaterialTheme.typography.labelSmall,
                             fontWeight = FontWeight.SemiBold
                         )
@@ -197,7 +213,7 @@ fun NewsCard(
                     IconButton(onClick = onToggleFavorite) {
                         Icon(
                             imageVector = if (article.isFavorite) Icons.Default.Bookmark else Icons.Outlined.BookmarkBorder,
-                            contentDescription = "Favorito",
+                            contentDescription = strings.favorite,
                             tint = if (article.isFavorite) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.size(20.dp)
                         )
@@ -206,7 +222,7 @@ fun NewsCard(
                     IconButton(onClick = onToggleRead) {
                         Icon(
                             imageVector = Icons.Outlined.CheckCircle,
-                            contentDescription = "Marcar leído",
+                            contentDescription = strings.markAsRead,
                             tint = if (article.isRead) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.size(20.dp)
                         )

@@ -1,0 +1,27 @@
+<resources>
+    <string name="app_name">Chronicle</string>
+    <string name="app_tagline">Editorial News &amp; Local AI Broadcaster</string>
+    <string name="daily_digest">Today\'s Bulletin</string>
+    <string name="daily_digest_desc">Listen to the summary of today\'s top news</string>
+    <string name="custom_digest">Custom Bulletin</string>
+    <string name="custom_digest_desc">Audio briefing with your selected news</string>
+    <string name="filter_all">All</string>
+    <string name="filter_unread">Unread</string>
+    <string name="filter_favorites">Favorites</string>
+    <string name="sources">Sources</string>
+    <string name="add_source">Add source</string>
+    <string name="enter_site_url">Blog or RSS/Atom feed URL</string>
+    <string name="settings">Settings</string>
+    <string name="llm_settings">Local AI Model (Gemma)</string>
+    <string name="tts_settings">Voice Synthesis (TTS)</string>
+    <string name="listen_article">Listen article</string>
+    <string name="narrating">Narrating…</string>
+    <string name="generating_summary">Synthesizing audio with Gemma…</string>
+    <string name="playing_audio">Playing narration…</string>
+    <string name="loading_models">Loading AI model and voices…</string>
+    <string name="models_ready">AI model and voices ready</string>
+    <string name="search_placeholder">Search headlines or sources…</string>
+    <string name="mark_all_read">Mark all as read</string>
+    <string name="sort_recent">Recent</string>
+    <string name="sort_source">By source</string>
+</resources>

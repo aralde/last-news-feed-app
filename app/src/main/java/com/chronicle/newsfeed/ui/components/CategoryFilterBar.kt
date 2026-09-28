@@ -5,12 +5,11 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Bookmark
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.FiberManualRecord
-import androidx.compose.material.icons.filled.FilterList
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.BookmarkBorder
 import androidx.compose.material.icons.outlined.DoneAll
+import androidx.compose.material.icons.outlined.Schedule
+import androidx.compose.material.icons.outlined.Source
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -18,6 +17,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.chronicle.newsfeed.ui.feed.SortOrder
+import com.chronicle.newsfeed.ui.theme.LocalAppStrings
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -32,8 +33,15 @@ fun CategoryFilterBar(
     activeFiltersCount: Int,
     onOpenFiltersModal: () -> Unit,
     onMarkAllRead: () -> Unit,
+    categories: List<String> = emptyList(),
+    selectedCategory: String = "Todos",
+    onSelectCategory: (String) -> Unit = {},
+    sortOrder: SortOrder = SortOrder.NEWEST,
+    onToggleSortOrder: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
+    val strings = LocalAppStrings.current
+
     Row(
         modifier = modifier
             .fillMaxWidth()
@@ -44,21 +52,22 @@ fun CategoryFilterBar(
     ) {
         // "Todos" Pill with Count
         FilterChip(
-            selected = !showOnlyUnread && !showOnlyFavorites,
+            selected = !showOnlyUnread && !showOnlyFavorites && selectedCategory == "Todos",
             onClick = {
                 onToggleUnread(false)
                 onToggleFavorites(false)
+                onSelectCategory("Todos")
             },
             label = {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Text("Todos")
+                    Text(strings.filterAll)
                     Badge(
-                        containerColor = if (!showOnlyUnread && !showOnlyFavorites) MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.25f) else MaterialTheme.colorScheme.surfaceVariant
+                        containerColor = if (!showOnlyUnread && !showOnlyFavorites && selectedCategory == "Todos") MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.25f) else MaterialTheme.colorScheme.surfaceVariant
                     ) {
                         Text(
                             text = "$allCount",
                             fontSize = 10.sp,
-                            color = if (!showOnlyUnread && !showOnlyFavorites) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
+                            color = if (!showOnlyUnread && !showOnlyFavorites && selectedCategory == "Todos") MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                 }
@@ -87,7 +96,7 @@ fun CategoryFilterBar(
             },
             label = {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Text("No leídos")
+                    Text(strings.filterUnread)
                     Badge(
                         containerColor = if (showOnlyUnread) MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.25f) else MaterialTheme.colorScheme.surfaceVariant
                     ) {
@@ -122,7 +131,7 @@ fun CategoryFilterBar(
             },
             label = {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Text("Favoritos")
+                    Text(strings.filterFavorites)
                     Badge(
                         containerColor = if (showOnlyFavorites) MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.25f) else MaterialTheme.colorScheme.surfaceVariant
                     ) {
@@ -143,7 +152,51 @@ fun CategoryFilterBar(
 
         VerticalDivider(modifier = Modifier.height(20.dp), color = MaterialTheme.colorScheme.outline.copy(alpha = 0.4f))
 
-        // "Filtros" Button with Indicator Badge (replicates Chronicle web button)
+        // Direct Sort Order Pill
+        FilterChip(
+            selected = sortOrder == SortOrder.NEWEST,
+            onClick = onToggleSortOrder,
+            leadingIcon = {
+                Icon(
+                    imageVector = if (sortOrder == SortOrder.NEWEST) Icons.Outlined.Schedule else Icons.Outlined.Source,
+                    contentDescription = null,
+                    modifier = Modifier.size(14.dp)
+                )
+            },
+            label = {
+                Text(
+                    text = if (sortOrder == SortOrder.NEWEST) strings.sortByRecent else strings.sortBySource,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Medium
+                )
+            },
+            shape = RoundedCornerShape(16.dp),
+            colors = FilterChipDefaults.filterChipColors(
+                selectedContainerColor = MaterialTheme.colorScheme.secondaryContainer,
+                selectedLabelColor = MaterialTheme.colorScheme.onSecondaryContainer
+            )
+        )
+
+        // Direct Category Chips on Main Screen
+        categories.forEach { category ->
+            val isSelected = selectedCategory.equals(category, ignoreCase = true)
+            FilterChip(
+                selected = isSelected,
+                onClick = {
+                    if (isSelected) onSelectCategory("Todos") else onSelectCategory(category)
+                },
+                label = { Text(category, fontSize = 12.sp) },
+                shape = RoundedCornerShape(16.dp),
+                colors = FilterChipDefaults.filterChipColors(
+                    selectedContainerColor = MaterialTheme.colorScheme.primary,
+                    selectedLabelColor = MaterialTheme.colorScheme.onPrimary
+                )
+            )
+        }
+
+        VerticalDivider(modifier = Modifier.height(20.dp), color = MaterialTheme.colorScheme.outline.copy(alpha = 0.4f))
+
+        // Advanced "Filtros" Button
         FilledTonalButton(
             onClick = onOpenFiltersModal,
             shape = RoundedCornerShape(16.dp),
@@ -154,7 +207,7 @@ fun CategoryFilterBar(
         ) {
             Icon(imageVector = Icons.Default.FilterList, contentDescription = null, modifier = Modifier.size(14.dp))
             Spacer(modifier = Modifier.width(6.dp))
-            Text("Filtros", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.SemiBold)
+            Text(strings.filters, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.SemiBold)
             if (activeFiltersCount > 0) {
                 Spacer(modifier = Modifier.width(6.dp))
                 Badge(containerColor = MaterialTheme.colorScheme.primary) {
@@ -163,7 +216,7 @@ fun CategoryFilterBar(
             }
         }
 
-        // "Marcar leídos" Button (replicates Chronicle web)
+        // "Marcar leídos" Button
         TextButton(
             onClick = onMarkAllRead,
             shape = RoundedCornerShape(16.dp),
@@ -171,7 +224,7 @@ fun CategoryFilterBar(
         ) {
             Icon(imageVector = Icons.Outlined.DoneAll, contentDescription = null, modifier = Modifier.size(14.dp))
             Spacer(modifier = Modifier.width(4.dp))
-            Text("Marcar todo leído", style = MaterialTheme.typography.labelSmall)
+            Text(strings.markAllRead, style = MaterialTheme.typography.labelSmall)
         }
     }
 }

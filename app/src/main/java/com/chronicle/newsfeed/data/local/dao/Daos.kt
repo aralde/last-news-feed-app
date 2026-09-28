@@ -68,6 +68,9 @@ interface ArticleDao {
     @Query("UPDATE articles SET isFavorite = :isFavorite WHERE id = :id")
     suspend fun setFavoriteStatus(id: String, isFavorite: Boolean)
 
+    @Query("UPDATE articles SET content = :content WHERE id = :id")
+    suspend fun updateArticleContent(id: String, content: String)
+
     @Query("UPDATE articles SET isRead = 1 WHERE sourceId = :sourceId")
     suspend fun markAllAsReadForSource(sourceId: String)
 

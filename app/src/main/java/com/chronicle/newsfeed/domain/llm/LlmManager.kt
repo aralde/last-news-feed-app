@@ -22,8 +22,14 @@ class LlmManager(private val context: Context) {
     private var currentModelPath: String = ""
     private var isInitializing = false
 
-    var status: LlmStatus = LlmStatus.Uninitialized
-        private set
+    private val _statusFlow = kotlinx.coroutines.flow.MutableStateFlow<LlmStatus>(LlmStatus.Uninitialized)
+    val statusFlow: kotlinx.coroutines.flow.StateFlow<LlmStatus> = _statusFlow
+
+    var status: LlmStatus
+        get() = _statusFlow.value
+        private set(value) {
+            _statusFlow.value = value
+        }
 
     suspend fun initialize(settings: LlmSettings) = withContext(Dispatchers.IO) {
         if (settings.modelPath.isBlank()) {
@@ -153,6 +159,36 @@ class LlmManager(private val context: Context) {
             val errorMsg = actual.localizedMessage ?: actual.message ?: actual.javaClass.simpleName
             Log.e("LlmManager", "Error generating daily digest with Gemma", actual)
             throw Exception("Error generando el boletín con Gemma: $errorMsg")
+        }
+    }
+
+    suspend fun generateCustomDigest(
+        articles: List<Pair<String, String>>,
+        settings: LlmSettings,
+        promptSettings: com.chronicle.newsfeed.data.model.PromptSettings? = null
+    ): String = withContext(Dispatchers.IO) {
+        if ((liteRtRunner == null && llmInference == null) || status !is LlmStatus.Ready) {
+            throw Exception("El modelo Gemma no está cargado. Ve a Ajustes y selecciona el archivo del modelo (.litertlm / .bin / .task).")
+        }
+
+        val lang = settings.language
+        val prompt = NewsPrompts.getCustomDigestPrompt(
+            articles = articles,
+            language = lang
+        )
+
+        try {
+            val rawResponse = generateText(prompt)
+            val clean = cleanAiResponse(rawResponse)
+            if (clean.isNotBlank()) {
+                return@withContext clean
+            }
+            throw Exception("El modelo Gemma no generó texto para el boletín personalizado.")
+        } catch (e: Exception) {
+            val actual = if (e is java.lang.reflect.InvocationTargetException) (e.targetException ?: e) else e
+            val errorMsg = actual.localizedMessage ?: actual.message ?: actual.javaClass.simpleName
+            Log.e("LlmManager", "Error generating custom digest with Gemma", actual)
+            throw Exception("Error generando el boletín personalizado con Gemma: $errorMsg")
         }
     }
 

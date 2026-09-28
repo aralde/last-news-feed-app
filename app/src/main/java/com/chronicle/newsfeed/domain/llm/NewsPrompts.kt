@@ -3,34 +3,38 @@ package com.chronicle.newsfeed.domain.llm
 object NewsPrompts {
 
     val DEFAULT_ARTICLE_SUMMARY_ES = """
-        Eres un locutor y periodista experto de noticias de radio y televisión. Tu tarea es generar un resumen conciso, claro y muy ameno para ser narrado en voz alta mediante texto a voz (TTS).
+        Eres un locutor y periodista experto de noticias de radio y televisión. Tu tarea es generar una crónica o resumen periodístico completo, profundo y riguroso pero a la vez muy ameno para ser locutado mediante texto a voz (TTS).
         Reglas estrictas e inviolables:
-        - REGLA DE IDIOMA FUNDAMENTAL: Aunque el titular o el contenido original estén en inglés u otro idioma, DEBES traducir y redactar todo el resumen hablado obligatoriamente y al 100% en ESPAÑOL. No mezcles idiomas ni dejes oraciones en inglés.
-        - Máximo 2 a 3 oraciones bien estructuradas (entre 45 y 75 palabras en total).
-        - Sé directo, periodístico, natural y fácil de entender al escuchar.
-        - NO uses asteriscos (*), títulos en negrita (# o **), ni viñetas. Escribe texto corrido fluido.
+        - REGLA DE IDIOMA FUNDAMENTAL: Aunque el titular o el contenido original estén en inglés u otro idioma, DEBES traducir, adaptar y redactar todo obligatoriamente y al 100% en ESPAÑOL. No dejes palabras ni oraciones en inglés.
+        - ESTRUCTURA DE RESPUESTA OBLIGATORIA (exactamente 2 líneas):
+          Línea 1: Titular traducido y adaptado al ESPAÑOL (un titular claro, directo, periodístico y natural de locutar en voz alta, sin etiquetas como 'Titular:').
+          Línea 2: Crónica o resumen periodístico completo, fluido y profundo en ESPAÑOL de entre 100 y 160 palabras explicando los hechos clave, contexto de fondo y repercusiones.
+        - Tono: Periodístico, analítico, claro, natural y cautivador para el oyente.
+        - Estilo TTS: NO uses asteriscos (*), títulos ni encabezados Markdown (# o **), ni viñetas. Solo texto limpio para voz.
         - Responde única y exclusivamente en ESPAÑOL.
 
-        Titular: "{title}"
+        Titular original: "{title}"
         Información de la noticia:
         {content}
 
-        Resumen hablado en ESPAÑOL:
+        Respuesta en ESPAÑOL (Línea 1: titular traducido, Línea 2: resumen):
     """.trimIndent()
 
     val DEFAULT_ARTICLE_SUMMARY_EN = """
-        You are an expert radio news broadcaster. Your task is to generate a concise, engaging summary specifically designed to be read aloud via text-to-speech.
+        You are an expert news broadcaster and investigative journalist. Your task is to produce a thorough, insightful, and engaging journalistic summary crafted specifically to be read aloud via text-to-speech (TTS).
         Strict rules:
-        - Maximum 2 to 3 well-structured sentences (between 45 and 75 words total).
-        - Be direct, natural, and engaging to listen to.
-        - Strictly NO asterisks, NO markdown headers (# or **), and NO bullet points. Write smooth, flowing spoken text.
+        - EXACT RESPONSE STRUCTURE (2 lines):
+          Line 1: Headline translated and adapted into natural spoken ENGLISH (concise, clear, without labels like 'Headline:').
+          Line 2: A thorough, smooth, in-depth journalistic spoken summary in ENGLISH (100 to 160 words) explaining key events, essential context, and implications.
+        - Tone: Professional, journalistic, authoritative, yet natural and captivating to listen to.
+        - Spoken delivery: Strictly NO asterisks, NO markdown headers (# or **), and NO bullet points. Write smooth, fluid spoken prose without formatting symbols.
         - Respond exclusively in ENGLISH.
 
-        Headline: "{title}"
+        Original headline: "{title}"
         Article details:
         {content}
 
-        Spoken summary in ENGLISH:
+        Response in ENGLISH (Line 1: translated headline, Line 2: summary):
     """.trimIndent()
 
     val DEFAULT_DAILY_DIGEST_ES = """
@@ -113,4 +117,55 @@ object NewsPrompts {
             "$template\n\nStories:\n$formattedArticles\n\nDigest:"
         }
     }
+
+    fun getCustomDigestPrompt(
+        articles: List<Pair<String, String>>,
+        language: String = "es",
+        customTemplate: String = ""
+    ): String {
+        val formattedArticles = articles.mapIndexed { index, (source, title) ->
+            "${index + 1}. [$source] $title"
+        }.joinToString("\n")
+
+        val baseTemplate = if (language == "en") {
+            """
+            You are an expert news presenter. Generate a dedicated "Custom News Bulletin" synthesizing the following hand-picked stories into a cohesive, fluid broadcast.
+            Strict rules:
+            - Start with a dynamic greeting (e.g., "Welcome to your custom news briefing...").
+            - Seamlessly connect the selected stories using natural journalistic transitions.
+            - Provide clear insights, significance, and context for each story.
+            - Spoken audio style: Strictly NO asterisks, NO markdown headers, and NO bullet points.
+            - Respond exclusively in ENGLISH.
+
+            Selected stories:
+            {articles}
+
+            Custom spoken bulletin in ENGLISH:
+            """.trimIndent()
+        } else {
+            """
+            Eres un locutor de radio y presentador de noticias de primer nivel. Tu tarea es generar un "Boletín de Noticias Personalizado" que sintetice de forma conectada, amena y profunda las noticias seleccionadas a continuación.
+            Reglas estrictas e inviolables:
+            - REGLA DE IDIOMA FUNDAMENTAL: Todo el boletín debe redactarse obligatoriamente y al 100% en ESPAÑOL fluido, traduciendo los títulos que vengan en inglés.
+            - Inicia con una apertura dinámica y cercana (ejemplo: "¡Hola! Bienvenidos a vuestro boletín personalizado con las historias seleccionadas...").
+            - Sintetiza cada una de las noticias elegidas enlazándolas con transiciones periodísticas naturales y coherentes.
+            - Destaca lo más relevante, el contexto y sus implicaciones.
+            - Texto continuo pensado para voz alta (TTS): NO uses viñetas (* o -), ni encabezados (#), ni negritas (**).
+            - Responde única y exclusivamente en ESPAÑOL.
+
+            Noticias seleccionadas:
+            {articles}
+
+            Boletín personalizado para narrar en ESPAÑOL:
+            """.trimIndent()
+        }
+
+        val template = if (customTemplate.isNotBlank()) customTemplate else baseTemplate
+        return if (template.contains("{articles}")) {
+            template.replace("{articles}", formattedArticles)
+        } else {
+            "$template\n\nStories:\n$formattedArticles\n\nBulletin:"
+        }
+    }
 }
+

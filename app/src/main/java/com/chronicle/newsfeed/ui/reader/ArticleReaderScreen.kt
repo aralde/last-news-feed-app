@@ -36,6 +36,7 @@ fun ArticleReaderScreen(
     isSynthesizing: Boolean
 ) {
     val context = LocalContext.current
+    val strings = com.chronicle.newsfeed.ui.theme.LocalAppStrings.current
 
     Scaffold(
         topBar = {
@@ -101,7 +102,7 @@ fun ArticleReaderScreen(
                                 color = MaterialTheme.colorScheme.onPrimary
                             )
                             Spacer(modifier = Modifier.width(8.dp))
-                            Text("Generando resumen hablado con Gemma…")
+                            Text(strings.generatingSummary)
                         } else {
                             Icon(
                                 imageVector = Icons.Default.Headphones,
@@ -109,7 +110,7 @@ fun ArticleReaderScreen(
                                 modifier = Modifier.size(20.dp)
                             )
                             Spacer(modifier = Modifier.width(8.dp))
-                            Text("Escuchar Resumen Locutado por IA")
+                            Text(strings.listenArticle)
                         }
                     }
                 }

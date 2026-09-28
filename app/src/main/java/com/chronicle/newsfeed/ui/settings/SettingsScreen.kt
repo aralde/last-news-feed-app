@@ -52,9 +52,22 @@ fun SettingsScreen(
 
     val snackbarHostState = remember { SnackbarHostState() }
 
-    var selectedTabIndex by remember { mutableIntStateOf(0) }
-    val tabTitles = listOf("Modelo & IA", "Prompts", "Locución & TTS")
-    val tabIcons = listOf(Icons.Default.Memory, Icons.Default.EditNote, Icons.Default.RecordVoiceOver)
+    var showAdvancedConfig by remember { mutableStateOf(false) }
+    var selectedTab by remember { mutableStateOf(SettingsTab.MODEL_AI) }
+
+    val activeTabs = remember(showAdvancedConfig) {
+        if (showAdvancedConfig) {
+            listOf(SettingsTab.MODEL_AI, SettingsTab.PROMPTS, SettingsTab.TTS_VOICE)
+        } else {
+            listOf(SettingsTab.MODEL_AI, SettingsTab.TTS_VOICE)
+        }
+    }
+
+    LaunchedEffect(showAdvancedConfig) {
+        if (!showAdvancedConfig && selectedTab == SettingsTab.PROMPTS) {
+            selectedTab = SettingsTab.MODEL_AI
+        }
+    }
 
     LaunchedEffect(statusMessage) {
         statusMessage?.let {
@@ -92,28 +105,49 @@ fun SettingsScreen(
                             Icon(imageVector = Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Volver")
                         }
                     },
+                    actions = {
+                        FilterChip(
+                            selected = showAdvancedConfig,
+                            onClick = {
+                                showAdvancedConfig = !showAdvancedConfig
+                                if (showAdvancedConfig) {
+                                    selectedTab = SettingsTab.PROMPTS
+                                }
+                            },
+                            label = { Text("Avanzado", fontSize = 12.sp) },
+                            leadingIcon = {
+                                Icon(
+                                    imageVector = if (showAdvancedConfig) Icons.Default.Tune else Icons.Default.SettingsSuggest,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                            },
+                            modifier = Modifier.padding(end = 12.dp)
+                        )
+                    },
                     colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background)
                 )
 
+                val selectedIndex = activeTabs.indexOf(selectedTab).coerceAtLeast(0)
                 TabRow(
-                    selectedTabIndex = selectedTabIndex,
+                    selectedTabIndex = selectedIndex,
                     containerColor = MaterialTheme.colorScheme.background,
                     contentColor = MaterialTheme.colorScheme.primary
                 ) {
-                    tabTitles.forEachIndexed { index, title ->
+                    activeTabs.forEach { tab ->
                         Tab(
-                            selected = selectedTabIndex == index,
-                            onClick = { selectedTabIndex = index },
+                            selected = selectedTab == tab,
+                            onClick = { selectedTab = tab },
                             text = {
                                 Text(
-                                    title,
-                                    fontWeight = if (selectedTabIndex == index) FontWeight.Bold else FontWeight.Normal,
+                                    if (tab == SettingsTab.PROMPTS) "Prompts (Avanzado)" else tab.title,
+                                    fontWeight = if (selectedTab == tab) FontWeight.Bold else FontWeight.Normal,
                                     fontSize = 13.sp
                                 )
                             },
                             icon = {
                                 Icon(
-                                    imageVector = tabIcons[index],
+                                    imageVector = tab.icon,
                                     contentDescription = null,
                                     modifier = Modifier.size(18.dp)
                                 )
@@ -129,24 +163,32 @@ fun SettingsScreen(
                 .fillMaxSize()
                 .padding(paddingValues)
         ) {
-            when (selectedTabIndex) {
-                0 -> ModelAiTab(
+            when (selectedTab) {
+                SettingsTab.MODEL_AI -> ModelAiTab(
                     llmSettings = llmSettings,
                     llmStatus = llmStatus,
                     isImportingModel = isImportingModel,
                     importProgress = importProgress,
+                    showAdvancedConfig = showAdvancedConfig,
+                    onToggleAdvancedConfig = {
+                        showAdvancedConfig = !showAdvancedConfig
+                        if (showAdvancedConfig) {
+                            selectedTab = SettingsTab.PROMPTS
+                        }
+                    },
                     onSelectModel = { modelPickerLauncher.launch(arrayOf("*/*")) },
                     onLanguageChange = { viewModel.setLanguage(it) },
                     onTemperatureChange = { viewModel.updateLlmSettings(llmSettings.copy(temperature = it)) },
-                    onTokensChange = { viewModel.updateLlmSettings(llmSettings.copy(maxTokens = it)) }
+                    onTokensChange = { viewModel.updateLlmSettings(llmSettings.copy(maxTokens = it)) },
+                    onFetchFullArticleWebChange = { viewModel.updateLlmSettings(llmSettings.copy(fetchFullArticleWeb = it)) }
                 )
-                1 -> SystemPromptsTab(
+                SettingsTab.PROMPTS -> SystemPromptsTab(
                     promptSettings = promptSettings,
                     currentLanguage = llmSettings.language,
                     onSavePrompts = { viewModel.updatePromptSettings(it) },
                     onResetPrompts = { viewModel.resetPromptSettings() }
                 )
-                2 -> TtsVoiceTab(
+                SettingsTab.TTS_VOICE -> TtsVoiceTab(
                     ttsSettings = ttsSettings,
                     downloadingVoiceId = downloadingVoiceId,
                     downloadProgress = downloadProgress,
@@ -163,6 +205,12 @@ fun SettingsScreen(
     }
 }
 
+private enum class SettingsTab(val title: String, val icon: androidx.compose.ui.graphics.vector.ImageVector) {
+    MODEL_AI("Modelo & IA", Icons.Default.Memory),
+    PROMPTS("Prompts", Icons.Default.EditNote),
+    TTS_VOICE("Locución & TTS", Icons.Default.RecordVoiceOver)
+}
+
 // ==========================================
 // PESTAÑA 1: MODELO & IA (GEMMA ON-DEVICE)
 // ==========================================
@@ -172,10 +220,13 @@ private fun ModelAiTab(
     llmStatus: LlmStatus,
     isImportingModel: Boolean,
     importProgress: Float,
+    showAdvancedConfig: Boolean,
+    onToggleAdvancedConfig: () -> Unit,
     onSelectModel: () -> Unit,
     onLanguageChange: (String) -> Unit,
     onTemperatureChange: (Float) -> Unit,
-    onTokensChange: (Int) -> Unit
+    onTokensChange: (Int) -> Unit,
+    onFetchFullArticleWebChange: (Boolean) -> Unit
 ) {
     Column(
         modifier = Modifier
@@ -357,6 +408,107 @@ private fun ModelAiTab(
                     onValueChange = { onTokensChange(it.toInt()) },
                     valueRange = 128f..1024f,
                     steps = 6
+                )
+            }
+        }
+
+        // Card: Origen de Contenido (Extracción Web completa vs RSS)
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(18.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .weight(1f)
+                            .padding(end = 12.dp)
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Language,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Text(
+                                text = "Extraer noticia completa web",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = "Accede al enlace original para resumir la noticia real en profundidad en lugar del extracto del RSS. Si el sitio tiene paywall o falla la conexión, usa el RSS automáticamente como respaldo.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    Switch(
+                        checked = llmSettings.fetchFullArticleWeb,
+                        onCheckedChange = onFetchFullArticleWebChange
+                    )
+                }
+            }
+        }
+
+        // Card: Configuración avanzada (Prompts del sistema)
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable { onToggleAdvancedConfig() },
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(
+                containerColor = if (showAdvancedConfig) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f)
+                else MaterialTheme.colorScheme.surface
+            )
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(18.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Row(
+                    modifier = Modifier.weight(1f),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Tune,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                    Column {
+                        Text(
+                            text = "Configuración avanzada",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            text = if (showAdvancedConfig) "Pestaña de Prompts visible arriba" else "Habilitar personalización de prompts del sistema",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+                Switch(
+                    checked = showAdvancedConfig,
+                    onCheckedChange = { onToggleAdvancedConfig() }
                 )
             }
         }

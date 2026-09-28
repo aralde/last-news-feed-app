@@ -6,10 +6,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AutoAwesome
-import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Headphones
 import androidx.compose.material.icons.filled.Pause
-import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -17,15 +15,20 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.chronicle.newsfeed.data.model.DailyDigest
+import com.chronicle.newsfeed.ui.theme.LocalAppStrings
 
 @Composable
 fun DailyDigestDialog(
     digest: DailyDigest?,
     isLoading: Boolean,
     isPlaying: Boolean,
+    isCustom: Boolean = false,
     onDismiss: () -> Unit,
     onTogglePlay: () -> Unit
 ) {
+    val strings = LocalAppStrings.current
+    val title = if (isCustom) strings.customDigest else strings.dailyDigest
+
     AlertDialog(
         onDismissRequest = onDismiss,
         title = {
@@ -39,7 +42,7 @@ fun DailyDigestDialog(
                     tint = MaterialTheme.colorScheme.primary
                 )
                 Text(
-                    text = "Boletín de Noticias de Hoy",
+                    text = title,
                     style = MaterialTheme.typography.titleLarge
                 )
             }
@@ -63,7 +66,7 @@ fun DailyDigestDialog(
                             CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
                             Spacer(modifier = Modifier.height(12.dp))
                             Text(
-                                text = "Gemma está sintetizando el boletín de la jornada…",
+                                text = if (isCustom) strings.generatingCustomDigest else strings.generatingSummary,
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -75,7 +78,7 @@ fun DailyDigestDialog(
                         color = MaterialTheme.colorScheme.surfaceVariant
                     ) {
                         Text(
-                            text = "Analizadas ${digest.articleCount} historias principales",
+                            text = String.format(strings.analyzeStoriesCount, digest.articleCount),
                             style = MaterialTheme.typography.labelSmall,
                             fontWeight = FontWeight.SemiBold,
                             color = MaterialTheme.colorScheme.primary,
@@ -105,13 +108,13 @@ fun DailyDigestDialog(
                         modifier = Modifier.size(18.dp)
                     )
                     Spacer(modifier = Modifier.width(6.dp))
-                    Text(if (isPlaying) "Pausar" else "Escuchar Boletín")
+                    Text(if (isPlaying) strings.pause else strings.listenArticle)
                 }
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("Cerrar")
+                Text(strings.close)
             }
         }
     )

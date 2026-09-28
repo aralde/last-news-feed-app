@@ -19,10 +19,19 @@ data class PlaybackState(
     val errorMessage: String? = null
 )
 
+sealed class TtsInitStatus {
+    object Initializing : TtsInitStatus()
+    data class Ready(val engineName: String) : TtsInitStatus()
+    data class Error(val message: String) : TtsInitStatus()
+}
+
 class TtsManager(private val context: Context) {
 
     private val _playbackState = MutableStateFlow(PlaybackState())
     val playbackState: StateFlow<PlaybackState> = _playbackState.asStateFlow()
+
+    private val _initStatus = MutableStateFlow<TtsInitStatus>(TtsInitStatus.Initializing)
+    val initStatus: StateFlow<TtsInitStatus> = _initStatus.asStateFlow()
 
     val piperDownloader = PiperDownloader(context)
 
@@ -38,10 +47,12 @@ class TtsManager(private val context: Context) {
             speechRate = currentSettings.speechRate,
             engineName = currentEngine?.name ?: "TTS"
         )
+        _initStatus.value = TtsInitStatus.Ready(currentEngine?.name ?: "TTS")
     }
 
     fun updateSettings(settings: TtsSettings) {
         currentSettings = settings
+        _initStatus.value = TtsInitStatus.Initializing
 
         systemEngine?.updateLocale(settings.language, settings.voiceRegion)
 
@@ -82,16 +93,21 @@ class TtsManager(private val context: Context) {
             currentEngine = systemEngine
         }
 
+        val engineName = currentEngine?.name ?: "TTS"
         _playbackState.value = _playbackState.value.copy(
             speechRate = settings.speechRate,
-            engineName = currentEngine?.name ?: "TTS"
+            engineName = engineName
         )
+        _initStatus.value = TtsInitStatus.Ready(engineName)
     }
 
-    fun play(title: String, text: String) {
+    private var currentOnDone: (() -> Unit)? = null
+
+    fun play(title: String, text: String, onDone: (() -> Unit)? = null) {
         if (text.isBlank()) return
 
         stop()
+        currentOnDone = onDone
         val engine = currentEngine ?: systemEngine
 
         _playbackState.value = _playbackState.value.copy(
@@ -118,8 +134,13 @@ class TtsManager(private val context: Context) {
                 override fun onDone() {
                     _playbackState.value = _playbackState.value.copy(
                         isPlaying = false,
-                        isSynthesizing = false
+                        isSynthesizing = false,
+                        text = "",
+                        title = ""
                     )
+                    val callback = currentOnDone
+                    currentOnDone = null
+                    callback?.invoke()
                 }
 
                 override fun onError(errorMessage: String) {
@@ -128,18 +149,22 @@ class TtsManager(private val context: Context) {
                         isSynthesizing = false,
                         errorMessage = errorMessage
                     )
+                    currentOnDone = null
                 }
             }
         )
     }
 
     fun stop() {
+        currentOnDone = null
         currentEngine?.stop()
         systemEngine?.stop()
         piperEngine?.stop()
         _playbackState.value = _playbackState.value.copy(
             isPlaying = false,
-            isSynthesizing = false
+            isSynthesizing = false,
+            text = "",
+            title = ""
         )
     }
 
